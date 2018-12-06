@@ -1,0 +1,70 @@
+#!/usr/bin/ansible-playbook
+---
+- hosts: all
+  become: true
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+
+  tasks:
+  - name: Run apt-get update
+    apt:
+      update-cache: yes
+    changed_when: 0
+
+  - name: Get a list of the pending upgrades
+    command: apt-get --simulate dist-upgrade
+    args:
+      warn: false
+    register: apt_simulate
+    changed_when: 0
+
+  - name: Parse apt-get output to get list of changed packages
+    set_fact:
+      updates: '{{ apt_simulate.stdout_lines | select("match", "^Inst ") | list | splitpart(1, " ") | list | sort }}'
+    changed_when: 0
+
+  - name: Show pending updates
+    debug:
+      var: updates
+    when: updates.0 is defined
+
+  - name: Do you want to proceed?
+    pause:
+    when: updates.0 is defined
+
+  - name: Run apt-get autoremove
+    command: apt-get -y autoremove
+    args:
+      warn: false
+    when: '"Inst linux-image-" in apt_simulate.stdout'
+    changed_when: 0
+
+  - name: Run apt-get full-upgrade
+    apt:
+      upgrade: full
+    register: upgrade_output
+
+  - name: check if reboot needed
+    stat: path=/var/run/reboot-required
+    register: file_reboot_required
+
+  - name: Stop here if a reboot isn't required...
+    meta: end_play
+    when: not file_reboot_required.stat.exists
+
+  - name: Confirm reboot of {{ inventory_hostname }}
+    pause:
+
+  - name: reboot node
+    reboot:
+      msg: Reboot triggered by Ansible
+
+  - name: wait for ssh to start fully
+    pause:
+      seconds: 15
+
+  - name: waiting between hosts
+    pause:
+      minutes: 5
+    when: inventory_hostname != ansible_play_hosts[-1]
