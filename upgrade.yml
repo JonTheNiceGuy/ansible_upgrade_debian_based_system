@@ -1,10 +1,10 @@
 #!/usr/bin/ansible-playbook
+# This is based loosely on https://www.redpill-linpro.com/sysadvent/2017/12/24/ansible-system-updates.html
 ---
 - hosts: all
   become: true
-  serial: 1
-  any_errors_fatal: true
-  max_fail_percentage: 0
+  vars:
+    force: "{% if lookup('env', 'force') == '' %}False{% else %}True{% endif %}"
 
   tasks:
   - name: Run apt-get update
@@ -31,19 +31,32 @@
 
   - name: Do you want to proceed?
     pause:
-    when: updates.0 is defined
+    when: updates.0 is defined and not force
 
+- hosts: all
+  gather_facts: false
+  become: true
+  serial: 1
+  any_errors_fatal: true
+  max_fail_percentage: 0
+  vars:
+    force: "{% if lookup('env', 'force') == '' %}False{% else %}True{% endif %}"
+
+  tasks:
   - name: Run apt-get autoremove
     command: apt-get -y autoremove
     args:
       warn: false
-    when: '"Inst linux-image-" in apt_simulate.stdout'
+    when:
+    - '"Inst linux-image-" in apt_simulate.stdout'
+    - updates.0 is defined
     changed_when: 0
 
   - name: Run apt-get full-upgrade
     apt:
       upgrade: full
     register: upgrade_output
+    when: updates.0 is defined
 
   - name: check if reboot needed
     stat: path=/var/run/reboot-required
@@ -63,6 +76,13 @@
   - name: wait for ssh to start fully
     pause:
       seconds: 15
+
+  - name: Check kernel version (basic SSH check)
+    shell: uname -rv
+    register: check
+
+  - debug: Kernel Version
+      msg: "{{ check.stdout }}"
 
   - name: waiting between hosts
     pause:
