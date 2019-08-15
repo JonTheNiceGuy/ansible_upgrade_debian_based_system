@@ -81,7 +81,8 @@
     shell: uname -rv
     register: check
 
-  - debug: Kernel Version
+  - name: Kernel Version
+    debug: 
       msg: "{{ check.stdout }}"
 
   - name: waiting between hosts
