@@ -87,5 +87,5 @@
 
   - name: waiting between hosts
     pause:
-      minutes: 5
+      minutes: 1
     when: inventory_hostname != ansible_play_hosts[-1]
