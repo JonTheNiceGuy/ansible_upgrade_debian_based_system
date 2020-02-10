@@ -68,18 +68,18 @@
 
   - name: Confirm reboot of {{ inventory_hostname }}
     pause:
+    when: not force
 
   - name: reboot node
     reboot:
       msg: Reboot triggered by Ansible
 
-  - name: wait for ssh to start fully
-    pause:
-      seconds: 15
-
   - name: Check kernel version (basic SSH check)
     shell: uname -rv
     register: check
+    until: check.failed == false
+    retries: 240
+    delay: 2
 
   - name: Kernel Version
     debug: 
