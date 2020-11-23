@@ -41,6 +41,7 @@
   max_fail_percentage: 0
   vars:
     force: "{% if lookup('env', 'force') == '' %}False{% else %}True{% endif %}"
+    skip_delay: "{% if lookup('env', 'skip_delay') == '' %}False{% else %}True{% endif %}"
 
   tasks:
   - name: Run apt-get autoremove
@@ -88,4 +89,4 @@
   - name: waiting between hosts
     pause:
       minutes: 1
-    when: inventory_hostname != ansible_play_hosts[-1]
+    when: inventory_hostname != ansible_play_hosts[-1] or skip_delay
